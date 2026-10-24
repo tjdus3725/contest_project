@@ -11,6 +11,7 @@ import java.net.URI
 class MapApi(base: String, private val token: String) {
     val baseUrl = base.trim().trimEnd('/')
     init {
+        require(token.none { it.code < 32 || it.code == 127 }) { "서버 연결 토큰에 줄바꿈이나 제어 문자를 사용할 수 없습니다" }
         val uri = URI(baseUrl)
         require(uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null && uri.path.orEmpty().isEmpty()) { "서버 주소는 경로 없이 입력하세요" }
         require(uri.scheme == "https" || (BuildConfig.DEBUG && uri.scheme == "http" && uri.host in listOf("localhost", "127.0.0.1"))) { "HTTPS 서버 또는 debug용 localhost 주소를 입력하세요" }
