@@ -69,7 +69,7 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
                     Icon(Icons.Rounded.Diversity1, null, tint = Mint, modifier = Modifier.size(28.dp))
                     Text("  동행", fontWeight = FontWeight.Bold, fontSize = 25.sp)
                     Spacer(Modifier.width(16.dp))
-                    Text(if (BuildConfig.FLAVOR == "demo") "DEMO · 가상 장소 / 전화 모의 실행" else "PLEOS · 차량용 시제품", fontSize = 13.sp, color = Muted, modifier = Modifier.weight(1f))
+                    Text(if (BuildConfig.FLAVOR == "demo") "DEMO · 전화 모의 실행" else "PLEOS · 차량용 시제품", fontSize = 13.sp, color = Muted, modifier = Modifier.weight(1f))
                     IconButton(onClick = voice, modifier = Modifier.size(56.dp)) { Icon(Icons.Rounded.Mic, "음성 요청", tint = Mint) }
                 }
                 if (!m.editingAllowed) Text("주행 중이거나 차량 상태 미확인 · 상세 입력은 정차 후 이용하세요", color = Color(0xFFE9CA8D), modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp), fontSize = 14.sp)
