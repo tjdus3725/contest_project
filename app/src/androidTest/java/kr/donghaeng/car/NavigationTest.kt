@@ -6,14 +6,13 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import android.graphics.Bitmap
 import android.content.ContentValues
 import android.provider.MediaStore
-import androidx.test.filters.SdkSuppress
 import org.junit.Rule
 import org.junit.Test
 
-@SdkSuppress(minSdkVersion = 29)
 class NavigationTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private fun screenshot(name: String) {
+        if (android.os.Build.VERSION.SDK_INT < 29) return
         rule.waitForIdle()
         val resolver = rule.activity.contentResolver
         val values = ContentValues().apply {
