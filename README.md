@@ -4,6 +4,8 @@
 
 현대자동차그룹 차량용 앱 개발 공모전의 [개발환경 가이드](https://appdevchallenge.auto-hmg.io/guide/development)를 기준으로 작성했습니다. 웹사이트나 Android Auto 템플릿 앱이 아니라 **Pleos Connect / Android Automotive OS용 네이티브 Android 앱**입니다.
 
+[검증 결과와 실제 화면](docs/VALIDATION.md) · [5분 시연 절차](docs/DEMO.md) · [기능·데이터 명세](docs/FEATURES.md)
+
 ## 구현 기능
 
 | 탭 | 동작 |
