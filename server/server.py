@@ -15,6 +15,15 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 
+class ServiceError(ValueError):
+    """Only application-authored safe messages, never raw upstream text or URLs."""
+
+
+def korea_point(p):
+    if not (32 <= p["lat"] <= 40 and 123 <= p["lon"] <= 133):
+        raise ServiceError("출발지 또는 목적지가 한국 밖으로 설정되어 있습니다. 에뮬레이터 Location을 한국으로 변경하고 GPS를 다시 받거나 출발지를 직접 검색하세요.")
+
+
 def point(value):
     if not isinstance(value, dict):
         raise ValueError("좌표 형식이 잘못되었습니다")
@@ -66,16 +75,16 @@ def sample_route(points, spacing=10000., limit=8):
 
 def kakao(url, key):
     if not key:
-        raise ValueError("서버에 카카오 REST API 키를 설정하세요")
+        raise ServiceError("서버에 카카오 REST API 키를 설정하세요")
     req = Request(url, headers={"Authorization": "KakaoAK " + key, "Accept": "application/json"})
     try:
         with urlopen(req, timeout=12) as response:
             return json.loads(response.read(8_000_000))
     except HTTPError as error:
         # Do not forward provider bodies, keys or request URLs to clients/logs.
-        raise ValueError(f"카카오 API 응답 {error.code}: 키·사용 설정·쿼터를 확인하세요") from None
+        raise ServiceError(f"카카오 API 응답 {error.code}: 키·사용 설정·쿼터를 확인하세요") from None
     except (URLError, TimeoutError):
-        raise ValueError("카카오 API 연결 실패 또는 시간 초과") from None
+        raise ServiceError("카카오 API 연결 실패 또는 시간 초과") from None
 
 
 def search(query, center=None):
@@ -94,6 +103,9 @@ def search(query, center=None):
 
 
 def directions(origin, destination, priority="DISTANCE", waypoint=None):
+    korea_point(origin); korea_point(destination)
+    if waypoint:
+        korea_point(waypoint)
     if priority not in ("DISTANCE", "TIME", "RECOMMEND"):
         raise ValueError("경로 우선순위 오류")
     params = {"origin": f'{origin["lon"]},{origin["lat"]}', "destination": f'{destination["lon"]},{destination["lat"]}',
@@ -103,7 +115,7 @@ def directions(origin, destination, priority="DISTANCE", waypoint=None):
     result = kakao("https://apis-navi.kakaomobility.com/v1/directions?" + urlencode(params), os.getenv("KAKAO_MOBILITY_REST_API_KEY") or os.getenv("KAKAO_REST_API_KEY", ""))
     routes = result.get("routes", [])
     if not routes or routes[0].get("result_code") != 0:
-        raise ValueError("주행 가능한 경로를 찾지 못했습니다")
+        raise ServiceError("주행 가능한 자동차 경로를 찾지 못했습니다. 출발지 GPS와 도로 진입 지점을 확인하거나 출발지를 장소 검색으로 다시 선택하세요.")
     route = routes[0]
     points = []
     for section in route.get("sections", []):
@@ -184,6 +196,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.respond(200, result)
             finally:
                 self.semaphore.release()
+        except ServiceError as error:
+            self.respond(400, {"error": str(error)})
         except (ValueError, KeyError, TypeError, OverflowError):
             # Safe errors only; never echo input secrets.
             self.respond(400, {"error": "요청 또는 카카오 API 처리 실패. 서버 키·API 사용 설정·좌표·검색어·쿼터를 확인하세요."})

@@ -34,6 +34,13 @@ class GeometryTest(unittest.TestCase):
         samples, _ = server.sample_route([p, p])
         self.assertEqual([p, p], samples)
 
+    def test_outside_korea_origin_has_actionable_error_before_api_call(self):
+        with patch.object(server, "kakao") as api:
+            with self.assertRaises(server.ServiceError) as error:
+                server.directions({"lat": 37.42, "lon": -122.08}, {"lat": 37.56, "lon": 126.98})
+        self.assertIn("한국 밖", str(error.exception))
+        api.assert_not_called()
+
     def test_provider_longitude_latitude_order_and_road_geometry(self):
         payload = {"routes": [{"result_code": 0, "summary": {"distance": 100, "duration": 20}, "sections": [{"roads": [{"vertexes": [127., 37., 127.01, 37.01]}]}]}]}
         with patch.object(server, "kakao", return_value=payload) as api:
@@ -92,6 +99,14 @@ class HttpTest(unittest.TestCase):
         self.assertIn("public-javascript-test-key", html)
         self.assertNotIn("REST-SECRET", html)
         self.assertNotIn("__MAP_KEY__", html)
+
+    def test_route_outside_korea_returns_safe_specific_error(self):
+        with patch.dict(os.environ, {"DONGHAENG_TOKEN": ""}):
+            with self.assertRaises(HTTPError) as error:
+                self.post("/route", {"origin": {"lat": 37.42, "lon": -122.08}, "destination": {"lat": 37.56, "lon": 126.98}})
+        data = json.load(error.exception)
+        self.assertIn("한국 밖", data["error"])
+        self.assertNotIn("-122", data["error"])
 
 
 if __name__ == "__main__":
