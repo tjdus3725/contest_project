@@ -4,16 +4,25 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.graphics.asAndroidBitmap
 import android.graphics.Bitmap
-import java.io.File
+import android.content.ContentValues
+import android.provider.MediaStore
+import androidx.test.filters.SdkSuppress
 import org.junit.Rule
 import org.junit.Test
 
+@SdkSuppress(minSdkVersion = 29)
 class NavigationTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private fun screenshot(name: String) {
         rule.waitForIdle()
-        val folder = File(rule.activity.getExternalFilesDir(null), "screenshots").apply { mkdirs() }
-        File(folder, "$name.png").outputStream().use {
+        val resolver = rule.activity.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, "$name.png")
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Donghaeng")
+        }
+        val uri = checkNotNull(resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values))
+        checkNotNull(resolver.openOutputStream(uri)).use {
             rule.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
         }
     }
