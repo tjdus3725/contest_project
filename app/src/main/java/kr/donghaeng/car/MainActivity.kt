@@ -30,11 +30,11 @@ class MainActivity : ComponentActivity() {
     private var uxManager: CarUxRestrictionsManager? = null
     private var locationManager: LocationManager? = null
     private val handler = Handler(Looper.getMainLooper())
-    private val stopLocation = Runnable {
+    private val stopLocation: Runnable = Runnable {
         locationManager?.removeUpdates(locationListener)
         if (model.locationText.startsWith("현재 위치 수신 중")) model.locationText = "30초 내 위치 수신 실패 · 주소나 주변 표지판을 직접 알려주세요"
     }
-    private val locationListener = LocationListener { loc ->
+    private val locationListener: LocationListener = LocationListener { loc ->
         val age = ((System.currentTimeMillis() - loc.time) / 1000).coerceAtLeast(0)
         val time = SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date(loc.time))
         model.locationText = "위도 %.5f · 경도 %.5f\n정확도 약 %.0fm · %s 수신 · %d초 전".format(Locale.KOREA, loc.latitude, loc.longitude, loc.accuracy, time, age)
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 val result = tts?.setLanguage(Locale.KOREA)
-                ttsReady = result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED
+                ttsReady = result != null && result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED
             }
         }
         connectVehicle()

@@ -5,7 +5,7 @@ import kotlin.math.sqrt
 enum class Situation(val label: String) { REST("휴식·시설"), MEDICAL("동승자 이상"), BREAKDOWN("차량 고장"), ACCIDENT("교통사고"), FIRE("연기·화재"), FLOOD("침수"), UNKNOWN("상황 확인 필요") }
 data class Assessment(val situation: Situation, val urgent: Boolean, val headline: String, val steps: List<String>, val facility: Facility? = null)
 
-/** Offline character-bigram nearest-centroid intent model + conservative safety rules.
+/** Offline character-bigram nearest-example intent model + conservative safety rules.
  * Similarity is NEVER a medical risk probability. Prototype, not clinically validated.
  * Free-form generation is deliberately excluded from emergency instructions.
  */
@@ -19,10 +19,7 @@ class SituationAssistant {
         Situation.FLOOD to listOf("차가 물에 잠겨요", "도로가 침수됐어요", "차 안으로 물이 들어와요", "물이 차올라요")
     )
     private fun features(text: String): Map<String, Double> = text.lowercase().replace(Regex("[^가-힣a-z0-9]"), "").windowed(2).groupingBy { it }.eachCount().mapValues { it.value.toDouble() }
-    private val centroids = corpus.mapValues { (_, examples) ->
-        val out = mutableMapOf<String, Double>()
-        examples.forEach { s -> features(s).forEach { (k, v) -> out[k] = (out[k] ?: 0.0) + v } }; out
-    }
+    private val examples = corpus.mapValues { (_, texts) -> texts.map(::features) }
     private fun cosine(a: Map<String, Double>, b: Map<String, Double>): Double {
         val norm = sqrt(a.values.sumOf { it * it } * b.values.sumOf { it * it })
         return if (norm == 0.0) 0.0 else a.entries.sumOf { it.value * (b[it.key] ?: 0.0) } / norm
@@ -36,7 +33,8 @@ class SituationAssistant {
         if (listOf("침수", "잠겨", "잠기", "물에", "물이가", "물이차", "물차").any { text.contains(it) }) return guide(Situation.FLOOD)
         if (listOf("사고", "충돌", "추돌", "부딪").any { text.contains(it) }) return guide(Situation.ACCIDENT)
         if (listOf("아파", "아프", "토해", "토하", "멀미", "어지", "이상해").any { text.contains(it) }) return guide(Situation.MEDICAL)
-        val ranked = centroids.map { (k, v) -> k to cosine(features(raw), v) }.sortedByDescending { it.second }
+        val vector = features(raw)
+        val ranked = examples.map { (k, vectors) -> k to vectors.maxOf { cosine(vector, it) } }.sortedByDescending { it.second }
         val intent = if (ranked[0].second >= .22 && ranked[0].second - ranked[1].second >= .035) ranked[0].first else Situation.UNKNOWN
         val facility = when {
             "기저귀" in text -> Facility.DIAPER

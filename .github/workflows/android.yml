@@ -52,9 +52,13 @@ jobs:
           arch: x86_64
           profile: pixel_c
           disable-animations: true
-          script: bash gradlew --no-daemon :app:connectedDemoDebugAndroidTest
+          script: |
+            bash gradlew --no-daemon :app:connectedDemoDebugAndroidTest
+            adb pull /sdcard/Android/data/kr.donghaeng.car.demo/files/screenshots ui-screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: donghaeng-ui-test-reports
-          path: app/build/reports/androidTests/
+          path: |
+            app/build/reports/androidTests/
+            ui-screenshots/

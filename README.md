@@ -70,7 +70,7 @@ adb shell am start -n kr.donghaeng.car/kr.donghaeng.car.MainActivity
 
 ## AI와 긴급 안내의 실제 범위
 
-`core/SituationAssistant.kt`는 한국어 문자 bigram의 nearest-centroid 분류 모델입니다. 앱 안에서 예시 말뭉치로 중심 벡터를 만들고 문장 유사도로 상황을 분류합니다. 인터넷이나 API 키 없이 실행됩니다. **LLM이나 의학적 진단 모델은 아닙니다.**
+`core/SituationAssistant.kt`는 한국어 문자 bigram의 nearest-example 분류 모델입니다. 앱 안에서 예시 말뭉치를 벡터로 만들고 가까운 예시 문장과의 유사도로 상황을 분류합니다. 인터넷이나 API 키 없이 실행됩니다. **LLM이나 의학적 진단 모델은 아닙니다.**
 
 위험 신호 규칙이 분류 모델보다 먼저 적용되며, 분류가 애매하면 판단을 보류합니다. 의료·화재·침수·사고 표현은 휴식 장소 요청보다 우선합니다. 위험 신호 부정문도 보수적으로 처리하므로 과잉 경고가 가능합니다. 출력은 사전에 작성한 안내이며 자유 생성 처치·약물 용량·안전 확정은 없습니다.
 
