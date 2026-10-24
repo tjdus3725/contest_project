@@ -65,7 +65,7 @@ fun LivePlacesPanel(m: DonghaengModel, locate: () -> Unit) {
             }
             Button(onClick = { p.searchAlong() }, enabled = p.baseRoute != null && !p.busy && p.query.isNotBlank()) { Text("이 경로 주변 검색") }
         }
-        Text("검색 반영 조건: ${m.required.joinToString { it.label }.ifBlank { "없음" }}\n아래는 실제 장소 후보이며 시설 조건 충족을 확인한 추천 목록은 아닙니다. 기저귀 교환대·수유실·반려동물 출입·운영시간은 장소에 직접 확인하세요.", fontSize = 14.sp)
+        Text("가족의 필요 조건: ${m.required.joinToString { it.label }.ifBlank { "없음" }}\n아래는 실제 장소 후보이며 시설 조건 충족을 확인한 추천 목록은 아닙니다. 기저귀 교환대·수유실·반려동물 출입·운영시간은 장소에 직접 확인하세요.", fontSize = 14.sp)
         p.previewStop?.let { stop ->
             val baseline = p.baseRoute; val preview = p.previewRoute
             if (baseline != null && preview != null) {
