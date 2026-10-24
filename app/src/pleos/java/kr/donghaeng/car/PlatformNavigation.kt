@@ -45,7 +45,7 @@ class PlatformNavigation(context: Context, private val status: (String) -> Unit)
         try {
             pending = true
             helper.addWaypoint(RequestWaypointInfo(latitude = place.latitude, longitude = place.longitude,
-                poiName = place.name, waypointIndex = WaypointIndex.FIRST, poiId = null, poiSubId = null, address = null))
+                poiName = place.name, waypointIndex = WaypointIndex.FIRST, poiId = "", poiSubId = "", address = ""))
             report("경유지 요청 전송 · 반영 여부 확인 중")
             handler.postDelayed(timeout, 15000)
             helper.getWaypointInfo()
