@@ -9,6 +9,8 @@ local.properties
 *.hprof
 captures/
 .env
+__pycache__/
+*.pyc
 *.apk
 *.aab
 test-results/

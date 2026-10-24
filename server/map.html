@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body,#map{margin:0;width:100%;height:100%;background:#1b2a34;color:#fff;font-family:sans-serif}#status{position:absolute;z-index:10;top:8px;left:8px;background:#14232ceb;border-radius:8px;padding:8px;max-width:85%;font-size:13px}</style></head>
+<body><div id="map"></div><div id="status">카카오 지도 연결 중…</div>
+<script>
+let map, overlays=[], line, pending;
+window.renderDonghaeng=function(data){
+ pending=data;
+ if(!map)return;
+ overlays.forEach(x=>x.setMap(null));overlays=[];if(line)line.setMap(null);
+ const bounds=new kakao.maps.LatLngBounds();let count=0;
+ function marker(p,label){const pos=new kakao.maps.LatLng(p.lat,p.lon);bounds.extend(pos);count++;
+  const m=new kakao.maps.Marker({position:pos,map:map,title:label});overlays.push(m);
+  kakao.maps.event.addListener(m,'click',function(){
+   const el=document.createElement('div');el.style.cssText='padding:10px;color:#14232c;font-size:14px;max-width:260px';
+   el.textContent=label+' · 시설 및 동반 가능 여부는 별도 확인';
+   const info=new kakao.maps.InfoWindow({content:el,removable:true});info.open(map,m);overlays.push(info);
+  });
+ }
+ if(data.route&&data.route.length){const path=data.route.map(p=>{const x=new kakao.maps.LatLng(p.lat,p.lon);bounds.extend(x);count++;return x});line=new kakao.maps.Polyline({map:map,path:path,strokeWeight:6,strokeColor:'#2074ed',strokeOpacity:.9});}
+ if(data.origin)marker(data.origin,'출발지');if(data.destination)marker(data.destination,'목적지');
+ (data.places||[]).forEach((p,i)=>marker(p,(i+1)+'. '+p.name));
+ if(count)map.setBounds(bounds);document.getElementById('status').textContent=data.label||'실제 장소 · 시설 정보는 확인 필요';
+};
+window.startDonghaeng=function(){kakao.maps.load(function(){map=new kakao.maps.Map(document.getElementById('map'),{center:new kakao.maps.LatLng(37.5665,126.978),level:7});document.getElementById('status').textContent='출발지와 목적지를 선택하세요';if(pending)window.renderDonghaeng(pending);});};
+setTimeout(function(){if(!map)document.getElementById('status').textContent='지도 로딩 실패: JavaScript 키·등록 도메인·카카오맵 사용 설정·네트워크를 확인하세요';},15000);
+</script>
+<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=__MAP_KEY__&amp;autoload=false" onload="startDonghaeng()" onerror="document.getElementById('status').textContent='지도 스크립트 연결 실패'"></script>
+</body></html>

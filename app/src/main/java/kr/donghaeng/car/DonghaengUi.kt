@@ -75,7 +75,7 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
                 if (!m.editingAllowed) Text("주행 중이거나 차량 상태 미확인 · 상세 입력은 정차 후 이용하세요", color = Color(0xFFE9CA8D), modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp), fontSize = 14.sp)
                 when (m.tab) {
                     0 -> Home(m, voice)
-                    1 -> Places(m, voice)
+                    1 -> Places(m, voice, locate)
                     2 -> Emergency(m, voice, speak, dial, locate)
                     3 -> Family(m)
                     else -> Settings(m)
@@ -139,9 +139,9 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
             }
         })
         FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Action("화장실", Icons.Rounded.Wc) { m.requested = setOf(Facility.TOILET); m.tab = 1 }
-            Action("기저귀 교환", Icons.Rounded.ChildCare) { m.requested = setOf(Facility.DIAPER); m.tab = 1 }
-            Action("식사", Icons.Rounded.Restaurant) { m.requested = setOf(Facility.FOOD); m.tab = 1 }
+            Action("화장실", Icons.Rounded.Wc) { m.requested = setOf(Facility.TOILET); m.planner.query = "공중화장실"; m.tab = 1 }
+            Action("기저귀 교환", Icons.Rounded.ChildCare) { m.requested = setOf(Facility.DIAPER); m.planner.query = "휴게소"; m.tab = 1 }
+            Action("식사", Icons.Rounded.Restaurant) { m.requested = setOf(Facility.FOOD); m.planner.query = "음식점"; m.tab = 1 }
             Action("말로 요청하기", Icons.Rounded.Mic, onClick = voice)
         }
         if (m.editingAllowed) BoxCard("출발·도착 체크리스트", Modifier.fillMaxWidth()) {
@@ -164,17 +164,14 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
         drawCircle(Mint, 9f, Offset(size.width - 18f, size.height * .25f))
     }
 }
-@Composable private fun Places(m: DonghaengModel, voice: () -> Unit) {
+@Composable private fun Places(m: DonghaengModel, voice: () -> Unit, locate: () -> Unit) {
     var detail by remember { mutableStateOf<Place?>(null) }
     var add by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf<Place?>(null) }
-    Page("우리 가족에게 맞는 다음 쉼", "필수 시설이 확인된 후보 · 경로·우회 시간은 아직 제공하지 않아요") {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Switch(m.sampleMode, { m.sampleMode = it }, enabled = m.editingAllowed)
-            Text("  가상 장소로 시연", fontSize = 16.sp)
-            Spacer(Modifier.weight(1f)); Action("음성 요청", Icons.Rounded.Mic, onClick = voice)
-        }
-        if (m.sampleMode) Text("가상 시설 데이터입니다. 실제 위치·운영 여부를 보장하지 않으며 내비게이션에 전송하지 않습니다.", color = Color(0xFFE9CA8D))
+    Page("우리 가족에게 맞는 다음 쉼", "실제 장소 검색 · 카카오 자동차 경로 · 반려동물 동반 조건") {
+        Action("음성 요청", Icons.Rounded.Mic, onClick = voice)
+        LivePlacesPanel(m, locate)
+        Text("직접 확인해 저장한 시설", fontSize = 22.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Facility.entries.forEach { f ->
                 FilterChip(selected = f in m.required, onClick = {
@@ -249,7 +246,9 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
                     Action("다음 안내", enabled = step < result.steps.lastIndex) { step++ }
                     if (step > 0) Action("처음부터") { step = 0 }
                 }
-                if (result.situation == Situation.MEDICAL && !result.urgent) {
+                if (m.petAssessment) {
+                    Action("동물병원 찾기", Icons.Rounded.Pets) { m.planner.query = "동물병원"; m.tab = 1; if (m.planner.baseRoute != null && m.consentMap) m.planner.searchAlong() }
+                } else if (result.situation == Situation.MEDICAL && !result.urgent) {
                     Text("의식·호흡에 이상이 있거나 판단하기 어렵나요?", fontWeight = FontWeight.Bold)
                     Action("예 / 모르겠어요 · 119", Icons.Rounded.Call) { dial("119") }
                 }
@@ -259,7 +258,7 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
             BoxCard("위치와 신고용 요약", Modifier.fillMaxWidth()) {
                 Text(m.locationText, fontSize = 17.sp)
                 Action("위치 새로 확인", Icons.Rounded.MyLocation, onClick = locate)
-                Text("${m.situationText.ifBlank { "상황 미입력" }}\n등록 동승자 ${m.family.count { it.onboard }}명 · 실제 인원은 직접 확인", color = Muted)
+                Text("${m.situationText.ifBlank { "상황 미입력" }}\n등록: 사람 ${m.family.count { it.onboard && it.kind == CompanionKind.PERSON }}명 / 반려동물 ${m.family.count { it.onboard && it.kind != CompanionKind.PERSON }}마리 · 실제 인원은 직접 확인", color = Muted)
                 Text("앱은 신고 접수·구조대 출동 여부를 확인하지 않습니다.", color = Muted, fontSize = 13.sp)
             }
         }, right = {
@@ -285,7 +284,7 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
         if (m.family.isEmpty()) BoxCard("첫 동승자를 등록해 주세요", Modifier.fillMaxWidth()) { Text("별칭과 필요한 시설만으로 시작할 수 있어요. 의료 정보는 선택 사항입니다.", color = Muted) }
         m.family.forEach { p -> BoxCard(p.name, Modifier.fillMaxWidth(), p.onboard) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { Text(p.age.ifBlank { "연령대 미입력" }); Text(p.needs.joinToString(" · ") { it.label }.ifEmpty { "필수 시설 없음" }, color = Muted) }
+                Column(Modifier.weight(1f)) { Text("${p.kind.label} · ${p.age.ifBlank { "연령대 미입력" }}"); Text(p.needs.joinToString(" · ") { it.label }.ifEmpty { "필수 시설 없음" }, color = Muted) }
                 Text("이번 이동 동승"); Switch(p.onboard, { onboard -> m.family = m.family.map { if (it.id == p.id) it.copy(onboard = onboard) else it }; m.save() }, enabled = m.editingAllowed)
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -296,8 +295,8 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
         Action("동승자 추가", Icons.Rounded.PersonAdd, m.editingAllowed) { adding = true }
         Text("가족 정보는 이 기기에 암호화해 저장합니다. 외부 AI 서버로 전송하지 않습니다.", color = Muted)
     }
-    if ((adding || editing != null) && m.editingAllowed) FamilyEditor(editing, { adding = false; editing = null }) { name, age, needs, medical, contact ->
-        m.addFamily(name, age, needs, medical, contact, editing?.id); adding = false; editing = null
+    if ((adding || editing != null) && m.editingAllowed) FamilyEditor(editing, { adding = false; editing = null }) { name, age, needs, medical, contact, kind ->
+        m.addFamily(name, age, needs, medical, contact, editing?.id, kind); adding = false; editing = null
     }
     deleting?.let { p -> AlertDialog(onDismissRequest = { deleting = null }, title = { Text("${p.name} 정보를 삭제할까요?") }, text = { Text("이 기기에 등록한 동승자 정보가 삭제됩니다.") },
         confirmButton = { TextButton(onClick = { if (m.editingAllowed) { m.family = m.family.filterNot { it.id == p.id }; m.save() }; deleting = null }) { Text("삭제") } },
@@ -310,6 +309,8 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
     var insurer by remember { mutableStateOf(m.insurer) }
     var phone by remember { mutableStateOf(m.insurancePhone) }
     var checklist by remember { mutableStateOf(m.checklist.joinToString(", ")) }
+    var mapServer by remember { mutableStateOf(m.mapServer) }
+    var mapToken by remember { mutableStateOf(m.mapToken) }
     Page("MY · 이동 설정", "차량과 연락처, 데이터 사용 범위를 관리해요.") {
         BoxCard("연결 상태", Modifier.fillMaxWidth()) {
             Text(m.navStatus, color = Mint); Text(m.uxStatus, color = Muted)
@@ -325,6 +326,20 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
             Action("차량 정보 저장", Icons.Rounded.Save, m.editingAllowed) {
                 if (phone.isNotBlank() && PhoneNumbers.clean(phone) == null) m.notice = "전화번호 형식을 확인해 주세요"
                 else { m.vehicle = vehicle.trim(); m.insurer = insurer.trim(); m.insurancePhone = phone.trim(); m.save() }
+            }
+        }
+        BoxCard("지도 서비스", Modifier.fillMaxWidth()) {
+            Entry(mapServer, { mapServer = it }, "지도 서버 주소 (개발: http://localhost:8787)", m.editingAllowed)
+            OutlinedTextField(mapToken, { mapToken = it.take(500) }, label = { Text("서버 연결 토큰 (선택 / 카카오 키 아님)") }, enabled = m.editingAllowed,
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("위치·검색어의 지도 서비스 처리 동의", modifier = Modifier.weight(1f))
+                Switch(m.consentMap, { m.consentMap = it; m.planner.cancelForConfiguration(); m.save() }, enabled = m.editingAllowed)
+            }
+            Text("동의하면 지도 표시를 위해 카카오 웹 SDK가 로드되며, 출발·도착·경유 좌표와 검색어를 설정한 서버 및 카카오로 전송합니다. 가족 의료 정보는 전송하지 않습니다. REST API 키는 앱에 입력하지 말고 서버에 설정하세요.", color = Muted)
+            Action("지도 연결 설정 저장", Icons.Rounded.Save, m.editingAllowed) {
+                try { MapApi(mapServer, mapToken); m.mapServer = mapServer.trim().trimEnd('/'); m.mapToken = mapToken.trim(); m.planner.cancelForConfiguration(); m.save() }
+                catch (e: Exception) { m.notice = e.message ?: "서버 주소를 확인하세요" }
             }
         }
         BoxCard("휴식·준비물", Modifier.fillMaxWidth()) {
@@ -343,18 +358,22 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
         }
     }
     if (reset) AlertDialog(onDismissRequest = { reset = false }, title = { Text("저장한 정보를 모두 삭제할까요?") }, text = { Text("가족·의료 참고 정보·차량·보험·등록 장소·설정이 삭제됩니다.") },
-        confirmButton = { TextButton(onClick = { if (m.editingAllowed) { m.deleteAll(); vehicle = ""; insurer = ""; phone = ""; checklist = m.checklist.joinToString(", ") }; reset = false }) { Text("모두 삭제") } },
+        confirmButton = { TextButton(onClick = { if (m.editingAllowed) { m.deleteAll(); vehicle = ""; insurer = ""; phone = ""; mapToken = ""; mapServer = m.mapServer; checklist = m.checklist.joinToString(", ") }; reset = false }) { Text("모두 삭제") } },
         dismissButton = { TextButton(onClick = { reset = false }) { Text("취소") } })
 }
 @Composable private fun Entry(value: String, changed: (String) -> Unit, label: String, enabled: Boolean = true) {
     OutlinedTextField(value, { changed(it.take(500)) }, label = { Text(label) }, enabled = enabled, modifier = Modifier.fillMaxWidth(), maxLines = 3)
 }
-@Composable private fun FamilyEditor(person: FamilyMember?, dismiss: () -> Unit, save: (String, String, Set<Facility>, String, String) -> Unit) {
+@Composable private fun FamilyEditor(person: FamilyMember?, dismiss: () -> Unit, save: (String, String, Set<Facility>, String, String, CompanionKind) -> Unit) {
     var name by remember { mutableStateOf(person?.name ?: "") }; var age by remember { mutableStateOf(person?.age ?: "") }
     var needs by remember { mutableStateOf(person?.needs ?: emptySet()) }; var medical by remember { mutableStateOf(person?.medical ?: "") }
     var phone by remember { mutableStateOf(person?.contact ?: "") }
+    var kind by remember { mutableStateOf(person?.kind ?: CompanionKind.PERSON) }
     AlertDialog(onDismissRequest = dismiss, title = { Text(if (person == null) "동승자 추가" else "동승자 수정") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                CompanionKind.entries.forEach { value -> FilterChip(kind == value, { kind = value }, label = { Text(value.label) }) }
+            }
             Entry(name, { name = it }, "별칭 (필수)"); Entry(age, { age = it }, "연령대 / 나이")
             Text("필수 시설"); FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Facility.entries.forEach { f -> FilterChip(f in needs, { needs = if (f in needs) needs - f else needs + f }, label = { Text(f.label) }) }
@@ -362,7 +381,7 @@ fun DonghaengApp(m: DonghaengModel, voice: () -> Unit, speak: (String) -> Unit, 
             Entry(medical, { medical = it }, "알레르기·복용약 등 (선택)"); Entry(phone, { phone = it }, "보호자 전화번호 (선택)")
             if (phone.isNotBlank() && PhoneNumbers.clean(phone) == null) Text("전화번호 형식을 확인해 주세요", color = Red)
         }
-    }, confirmButton = { TextButton(onClick = { save(name, age, needs, medical, phone) }, enabled = name.isNotBlank() && (phone.isBlank() || PhoneNumbers.clean(phone) != null)) { Text("저장") } },
+    }, confirmButton = { TextButton(onClick = { save(name, age, needs, medical, phone, kind) }, enabled = name.isNotBlank() && (phone.isBlank() || PhoneNumbers.clean(phone) != null)) { Text("저장") } },
         dismissButton = { TextButton(onClick = dismiss) { Text("취소") } })
 }
 @Composable private fun PlaceEditor(onDismiss: () -> Unit, onSave: (Place) -> Unit) {

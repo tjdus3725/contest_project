@@ -18,6 +18,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import kr.donghaeng.core.PhoneNumbers
+import kr.donghaeng.core.GeoPoint
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
         val age = ((System.currentTimeMillis() - loc.time) / 1000).coerceAtLeast(0)
         val time = SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date(loc.time))
         model.locationText = "위도 %.5f · 경도 %.5f\n정확도 약 %.0fm · %s 수신 · %d초 전".format(Locale.KOREA, loc.latitude, loc.longitude, loc.accuracy, time, age)
+        if (model.tab == 1) model.planner.useLocation(GeoPoint(loc.latitude, loc.longitude))
         locationManager?.removeUpdates(locationListener)
         handler.removeCallbacks(stopLocation)
     }

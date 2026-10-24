@@ -9,6 +9,7 @@ import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.constants.WaypointIndex
 import ai.pleos.playground.navi.data.RequestWaypointInfo
 import ai.pleos.playground.navi.data.WaypointInfo
+import ai.pleos.playground.navi.data.RouteInfo
 import kr.donghaeng.core.Place
 
 class PlatformNavigation(context: Context, private val status: (String) -> Unit) : NavigationGateway {
@@ -55,5 +56,13 @@ class PlatformNavigation(context: Context, private val status: (String) -> Unit)
         handler.removeCallbacksAndMessages(null)
         runCatching { helper.removeListener(listener); helper.release() }
         connected = false
+    }
+    override fun setDestination(place: Place) {
+        if (place.demo || !connected) { report("실제 장소와 Pleos 연결을 확인하세요"); return }
+        try {
+            helper.requestRoute(RouteInfo(latitude = place.latitude, longitude = place.longitude, poiName = place.name,
+                poiId = "", poiSubId = "", address = "", displayLatitude = null, displayLongitude = null))
+            report("차량 목적지 요청 전송 · 차량 내비게이션에서 경로를 확인하세요")
+        } catch (e: Exception) { report("차량 목적지 요청 실패 · ${e.javaClass.simpleName}") }
     }
 }

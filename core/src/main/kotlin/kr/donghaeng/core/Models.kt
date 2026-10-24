@@ -1,13 +1,14 @@
 package kr.donghaeng.core
 
 enum class Facility(val label: String) {
-    TOILET("화장실"), DIAPER("기저귀 교환대"), NURSING("수유 공간"), FOOD("식사"), ACCESSIBLE("유모차 접근")
+    TOILET("화장실"), DIAPER("기저귀 교환대"), NURSING("수유 공간"), FOOD("식사"), ACCESSIBLE("유모차 접근"), PET_ALLOWED("반려동물 동반")
 }
+enum class CompanionKind(val label: String) { PERSON("사람"), DOG("반려견"), CAT("반려묘"), OTHER_PET("기타 반려동물") }
 enum class Evidence { CONFIRMED, ABSENT, UNKNOWN }
 data class FamilyMember(
     val id: String, val name: String, val age: String,
     val onboard: Boolean = true, val needs: Set<Facility> = emptySet(),
-    val medical: String = "", val contact: String = ""
+    val medical: String = "", val contact: String = "", val kind: CompanionKind = CompanionKind.PERSON
 )
 data class Place(
     val id: String, val name: String, val latitude: Double, val longitude: Double,
@@ -16,6 +17,29 @@ data class Place(
     val demo: Boolean = false, val note: String = ""
 ) {
     init { require(latitude.isFinite() && latitude in -90.0..90.0); require(longitude.isFinite() && longitude in -180.0..180.0) }
+}
+data class GeoPoint(val lat: Double, val lon: Double) {
+    init { require(lat.isFinite() && lat in -90.0..90.0 && lon.isFinite() && lon in -180.0..180.0) }
+}
+data class LivePlace(val id: String, val name: String, val point: GeoPoint, val address: String = "", val phone: String = "", val category: String = "", val url: String = "", val offset: Int? = null) {
+    fun toPlace() = Place("kakao-$id", name, point.lat, point.lon, emptyMap(), "도로 접근 방향 미확인", "카카오 로컬 검색", "시설 미확인", "운영시간 미확인", note = address)
+}
+data class DrivingRoute(val points: List<GeoPoint>, val distance: Int, val duration: Int, val priority: String)
+object PlaceRequests {
+    fun query(text: String, facility: Facility? = null): String = when {
+        "동물병원" in text -> "동물병원"
+        "졸음쉼터" in text -> "졸음쉼터"
+        "휴게소" in text || "기저귀" in text || "수유" in text -> "휴게소"
+        "반려" in text || "강아지" in text || "애견" in text -> if ("산책" in text || "공원" in text) "반려견 공원" else "애견동반 카페"
+        facility == Facility.TOILET -> "공중화장실"
+        facility == Facility.DIAPER || facility == Facility.NURSING -> "휴게소"
+        facility == Facility.FOOD -> "음식점"
+        "공원" in text || "산책" in text -> "공원"
+        "카페" in text || "커피" in text -> "카페"
+        "쉬" in text || "휴식" in text -> "휴게소"
+        else -> text.replace(Regex("(경로\\s*근처|경로\\s*주변|근처|주변|지금|좀|찾아\\s*줘요?|찾아주세요|검색해\\s*줘요?|검색해주세요|갈\\s*곳)"), " ").trim().take(100).ifBlank { "휴게소" }
+    }
+    fun isPlaceRequest(text: String) = listOf("찾아", "검색", "갈곳", "갈 곳", "들를", "근처", "휴게소", "졸음쉼터", "카페", "공원", "산책", "애견동반", "동물병원").any { it in text }
 }
 object Recommendations {
     fun find(places: List<Place>, required: Set<Facility>, preferred: Set<Facility> = emptySet()): List<Place> =

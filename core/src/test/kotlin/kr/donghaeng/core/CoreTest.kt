@@ -4,6 +4,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CoreTest {
+    @Test fun petProfilesAndUnknownPetFacilitiesAreNotConfirmed() {
+        val pet = FamilyMember("dog", "초코", "3살", needs = setOf(Facility.PET_ALLOWED), kind = CompanionKind.DOG)
+        assertEquals(setOf(Facility.PET_ALLOWED), Recommendations.requiredFor(listOf(pet)))
+        assertTrue(Recommendations.find(DemoPlaces.all, setOf(Facility.PET_ALLOWED)).isEmpty())
+        assertTrue(LivePlace("1", "장소", GeoPoint(37.0, 127.0)).toPlace().facilities.isEmpty())
+    }
+    @Test fun petAndFacilityRequestsProduceSearchTermsWithoutInventedPlaces() {
+        assertEquals("반려견 공원", PlaceRequests.query("강아지 산책할 공원 찾아줘"))
+        assertEquals("휴게소", PlaceRequests.query("기저귀 갈 곳", Facility.DIAPER))
+        assertEquals("스타벅스", PlaceRequests.query("경로 근처 스타벅스 찾아줘"))
+        assertTrue(PlaceRequests.isPlaceRequest("경로 근처 동물병원 찾아줘"))
+    }
     private val ai = SituationAssistant()
     @Test fun unknownFacilityNeverPassesRequiredFilter() {
         val matches = Recommendations.find(DemoPlaces.all, setOf(Facility.DIAPER))
