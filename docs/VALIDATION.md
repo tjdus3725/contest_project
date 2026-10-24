@@ -1,5 +1,17 @@
 # 검증 기록 · 2026-10-24
 
+## 실제 지도·반려동물 확장 검증
+
+검증 소스: `dda1937bd4065d88af7dd73643d896c9dc636167` · [Actions 실행](https://github.com/tjdus3725/contest_project/actions/runs/40086578508)
+
+- 핵심 로직 테스트 15개, 서버 HTTP·좌표·경로 주변 필터 테스트 10개 통과.
+- demoDebug / pleosDebug APK 빌드 및 두 변형 Lint 통과.
+- 일반 API 34 에뮬레이터에서 화면 전환·SOS 모의 실행 테스트 2개 통과.
+- 아래 화면은 최신 앱의 기본 상태입니다. 지도 동의·키·서버 연결 전 안내 화면을 포함합니다.
+- **본인 카카오 키가 없어 실제 지도 타일·실제 장소 응답·길찾기 실서비스 호출은 검증하지 못했습니다.** 서버 테스트는 외부 응답 fixture를 사용한 계약·오류 처리 검증입니다. 설정 후 [연결 절차](KAKAO_SETUP.md)의 실제 API 시험을 진행해야 합니다.
+
+## 최초 버전 검증 기록
+
 검증한 앱 소스 커밋: `39306d58dd0fd23c1342f9ce39f7f7da9666373f`.
 
 [GitHub Actions 실행 결과](https://github.com/tjdus3725/contest_project/actions/runs/40074678093)
